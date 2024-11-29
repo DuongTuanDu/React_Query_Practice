@@ -9,6 +9,12 @@ import OverlayTrigger from 'react-bootstrap/OverlayTrigger';
 import Popover from 'react-bootstrap/Popover';
 import { useQuery } from '@tanstack/react-query';
 
+interface IUser {
+    id: number;
+    name: string;
+    email: string;
+}
+
 function UsersTable() {
 
     const [isOpenCreateModal, setIsOpenCreateModal] = useState<boolean>(false);
@@ -32,22 +38,45 @@ function UsersTable() {
     const PopoverComponent = forwardRef((props: any, ref: any) => {
         const { id } = props;
 
+        const { isPending, error, data } = useQuery({
+            queryKey: ['fetchUser', id],//queryKey: là id định danh cho func fetch
+            queryFn: (): Promise<IUser> =>
+                fetch(`http://localhost:8000/users/${id}`).then((res) =>
+                    res.json(),
+                ),
+        })
+
+        const getBody = () => {
+            if (isPending) {
+                return 'Loading detail...';
+            }
+            if (error) return 'An error has occurred: ' + error.message
+            if (data) {
+                return (
+                    <>
+                        <div>ID = {id}</div>
+                        <div>Name = {data?.name}</div>
+                        <div>Email = {data?.email}</div>
+                    </>
+                )
+            }
+        }
+
+
         return (
 
             <Popover ref={ref} {...props}>
                 <Popover.Header as="h3">Detail User</Popover.Header>
                 <Popover.Body>
-                    <div>ID = {id}</div>
-                    <div>Name = ?</div>
-                    <div>Email = ?</div>
+                    {getBody()}
                 </Popover.Body>
             </Popover>
         )
     })
 
-    const { isPending, error, data: users } = useQuery({
-        queryKey: ['repoData'],
-        queryFn: () =>
+    const { isPending, error, data } = useQuery({
+        queryKey: ['fetchUser'],
+        queryFn: (): Promise<IUser[]> =>
             fetch('http://localhost:8000/users').then((res) =>
                 res.json(),
             ),
@@ -75,8 +104,7 @@ function UsersTable() {
                     </tr>
                 </thead>
                 <tbody>
-                    {/* @ts-ignore */}
-                    {users?.map(user => {
+                    {data?.map(user => {
                         return (
                             <tr key={user.id}>
                                 <OverlayTrigger trigger="click" placement="right"
