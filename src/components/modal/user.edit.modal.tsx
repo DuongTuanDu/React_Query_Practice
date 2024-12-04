@@ -3,11 +3,20 @@ import Modal from 'react-bootstrap/Modal';
 import FloatingLabel from 'react-bootstrap/FloatingLabel';
 import Form from 'react-bootstrap/Form';
 import { useState, useEffect } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-toastify';
+import { Spinner } from 'react-bootstrap';
+
+interface IUser {
+    id: number;
+    name: string;
+    email: string;
+}
 
 const UserEditModal = (props: any) => {
     const { isOpenUpdateModal, setIsOpenUpdateModal, dataUser } = props;
     const [id, setId] = useState();
-
+    const queryClient = useQueryClient()
     const [email, setEmail] = useState<string>("");
     const [name, setName] = useState<string>("");
 
@@ -19,6 +28,31 @@ const UserEditModal = (props: any) => {
         }
     }, [dataUser])
 
+    const mutation = useMutation({
+
+        mutationFn: async (payload: IUser) => {
+            const res = await fetch(`http://localhost:8000/users/${payload.id}`, {
+                method: "PUT",
+                body: JSON.stringify({
+                    id: payload.id,
+                    email: payload.email,
+                    name: payload.name,
+                }),
+                headers: {
+                    "Content-Type": " application/json"
+                }
+            });
+            return res.json();
+        },
+        onSuccess: (data, variables, context) => {
+            toast.success("User created successfully");
+            setIsOpenUpdateModal(false);
+            setEmail("");
+            setName("");
+            queryClient.invalidateQueries({ queryKey: ['fetchUser'] })
+        }
+    })
+
 
     const handleSubmit = () => {
         if (!email) {
@@ -29,6 +63,7 @@ const UserEditModal = (props: any) => {
             alert("name empty");
             return;
         }
+        if (id) mutation.mutate({ email, name, id });
         console.log({ email, name, id })
     }
 
@@ -66,10 +101,25 @@ const UserEditModal = (props: any) => {
                     </FloatingLabel>
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button
-                        variant='warning'
-                        onClick={() => setIsOpenUpdateModal(false)} className='mr-2'>Cancel</Button>
-                    <Button onClick={() => handleSubmit()}>Confirm</Button>
+                    {!mutation.isPending ?
+                        <>
+                            <Button
+                                variant='warning'
+                                onClick={() => setIsOpenUpdateModal(false)} className='mr-2'>Cancel</Button>
+                            <Button onClick={() => handleSubmit()}>Confirm</Button>
+                        </>
+                        :
+                        <Button variant="primary" disabled>
+                            <Spinner
+                                as="span"
+                                animation="border"
+                                size="sm"
+                                role="status"
+                                aria-hidden="true"
+                            />
+                            <></> Confirm...
+                        </Button>
+                    }
                 </Modal.Footer>
             </Modal>
         </>
